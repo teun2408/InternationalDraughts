@@ -49,6 +49,7 @@ public class Group11DraughtsPlayer  extends DraughtsPlayer{
             System.err.println("no valid move found!");
             return getRandomValidMove(s);
         } else {
+            System.out.println("score: ");
             return bestMove;
         }
     } 
@@ -117,7 +118,7 @@ public class Group11DraughtsPlayer  extends DraughtsPlayer{
         DraughtsState state = node.getState();
         // ToDo: write an alphabeta search to compute bestMove and value
         Move bestMove = state.getMoves().get(0);
-        int value = 0;
+        int value = evaluate(state);
         node.setBestMove(bestMove);
         return value;
      }
@@ -128,7 +129,7 @@ public class Group11DraughtsPlayer  extends DraughtsPlayer{
         DraughtsState state = node.getState();
         // ToDo: write an alphabeta search to compute bestMove and value
         Move bestMove = state.getMoves().get(0);
-        int value = 0;
+        int value = evaluate(state);
         node.setBestMove(bestMove);
         return value;
     }
@@ -136,24 +137,51 @@ public class Group11DraughtsPlayer  extends DraughtsPlayer{
     /** A method that evaluates the given state. */
     // ToDo: write an appropriate evaluation function
     int evaluate(DraughtsState state) { 
+        DraughtsNode node = new DraughtsNode(state);
+        //Devide certain aspects in weights with a total of 100
+        int piecedifferenceWeight = 40;
+        int positionWeight = 20;
+        
+        int pieceDiffscore = PieceDifference(state, node.getState().isWhiteToMove()) * piecedifferenceWeight;
+        int positionscore = PositionScore(state) * positionWeight;
+        return pieceDiffscore + positionscore;
+    }
+    //Get the difference in piecies between black and white
+    int PieceDifference(DraughtsState state, boolean isWhiteToMove){
         int[] pieces = state.getPieces();
         int blackpieces = 0;
         int whitepieces = 0;
+        //Give 1 point per piece, and 3 for kings
+        //Compare the result of white - black pieces or the opposide 
         for(int i=0; i< pieces.length; i++){
-            if(pieces[i] == 1){
-                whitepieces++;
-            } else if (pieces[i] == 3){
-                whitepieces += 3;
-            } else if (pieces[i] == 2){
-                blackpieces++;
-            } else if (pieces[i] == 4){
-                blackpieces += 3;
+            switch (pieces[i]) {
+                case 1:
+                    whitepieces++;
+                    break;
+                case 3:
+                    whitepieces += 3;
+                    break;
+                case 2:
+                    blackpieces++;
+                    break;
+                case 4:
+                    blackpieces += 3;
+                    break;
+                default:
+                    break;
             }
         }
-        if(state.isWhiteToMove()){
-            return whitepieces - blackpieces;
-        } else {
-            return blackpieces - whitepieces;
-        } 
+        int diff = whitepieces - blackpieces;
+        if(isWhiteToMove){
+            return diff;
+        }
+        else{
+            return diff * -1;
+        }
+    }
+    
+    //Get a score of the curren positioning
+    int PositionScore(DraughtsState state){
+        return 0;
     }
 }
