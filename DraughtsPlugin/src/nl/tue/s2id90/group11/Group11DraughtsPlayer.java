@@ -49,7 +49,6 @@ public class Group11DraughtsPlayer  extends DraughtsPlayer{
             System.err.println("no valid move found!");
             return getRandomValidMove(s);
         } else {
-            System.out.println("score: ");
             return bestMove;
         }
     } 
@@ -117,10 +116,26 @@ public class Group11DraughtsPlayer  extends DraughtsPlayer{
         if (stopped) { stopped = false; throw new AIStoppedException(); }
         DraughtsState state = node.getState();
         // ToDo: write an alphabeta search to compute bestMove and value
-        Move bestMove = state.getMoves().get(0);
-        int value = evaluate(state);
-        node.setBestMove(bestMove);
-        return value;
+        int bestVal = 100000000;
+        List<Move> moves = state.getMoves();
+        for(Move move : moves){
+            state.doMove(move);
+            int score = 0;
+            if(depth > 0){
+                score = alphaBeta(node, 0, 0, depth - 1);
+            }
+            else {
+                score = evaluate(state);
+            }
+            if(score < bestVal){
+                bestVal = score;
+                if(depth == 5){
+                    node.setBestMove(move);
+                }
+            }
+            state.undoMove(move);
+        }
+        return bestVal;
      }
     
     int alphaBetaMax(DraughtsNode node, int alpha, int beta, int depth)
@@ -128,10 +143,26 @@ public class Group11DraughtsPlayer  extends DraughtsPlayer{
         if (stopped) { stopped = false; throw new AIStoppedException(); }
         DraughtsState state = node.getState();
         // ToDo: write an alphabeta search to compute bestMove and value
-        Move bestMove = state.getMoves().get(0);
-        int value = evaluate(state);
-        node.setBestMove(bestMove);
-        return value;
+        int bestVal = -100000000;
+        List<Move> moves = state.getMoves();
+        for(Move move : moves){
+            state.doMove(move);
+            int score = 0;
+            if(depth > 0){
+                score = alphaBeta(node, 0, 0, depth - 1);
+            }
+            else {
+                score = evaluate(state);
+            }
+            if(score > bestVal){
+                bestVal = score;
+                if(depth == 5){
+                    node.setBestMove(move);
+                }
+            }
+            state.undoMove(move);
+        }
+        return bestVal;
     }
 
     /** A method that evaluates the given state. */
@@ -172,12 +203,9 @@ public class Group11DraughtsPlayer  extends DraughtsPlayer{
             }
         }
         int diff = whitepieces - blackpieces;
-        if(isWhiteToMove){
+        
             return diff;
-        }
-        else{
-            return diff * -1;
-        }
+        
     }
     
     //Get a score of the curren positioning
