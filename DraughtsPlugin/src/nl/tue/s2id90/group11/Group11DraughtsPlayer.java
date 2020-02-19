@@ -36,8 +36,9 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
         bestValue = 0;
         DraughtsNode node = new DraughtsNode(s.clone());    // the root of the search tree
         try {
+            for(int i = 1; i < maxSearchDepth +50; i++){
             // compute bestMove and bestValue in a call to alphabeta
-            bestValue = alphaBeta(node, MIN_VALUE, MAX_VALUE, maxSearchDepth);
+            bestValue = alphaBeta(node, MIN_VALUE, MAX_VALUE, 0, i, s.isWhiteToMove());
 
             // store the bestMove found uptill now
             // NB this is not done in case of an AIStoppedException in alphaBeat()
@@ -46,14 +47,15 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
             // print the results for debugging reasons
             System.err.format(
                     "%s: depth= %2d, best move = %5s, value=%d\n",
-                    this.getClass().getSimpleName(), maxSearchDepth, bestMove, bestValue
-            );
+                    this.getClass().getSimpleName(), i, bestMove, bestValue
+            );            
+        }
+
         } catch (AIStoppedException ex) {
             /* nothing to do */        }
 
         if (bestMove == null) {
             System.err.println("no valid move found!");
-            //bestValue = alphaBeta(node, MIN_VALUE, MAX_VALUE, maxSearchDepth);
             return getRandomValidMove(s);
         } else {
             return bestMove;
@@ -103,12 +105,12 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
      * @throws AIStoppedException
      *
      */
-    int alphaBeta(DraughtsNode node, int alpha, int beta, int depth)
+    int alphaBeta(DraughtsNode node, int alpha, int beta, int depth, int maxDepth, boolean isWhite)
             throws AIStoppedException {
         if (node.getState().isWhiteToMove()) {
-            return alphaBetaMax(node, alpha, beta, depth);
+            return alphaBetaMax(node, alpha, beta, depth, maxDepth, isWhite);
         } else {
-            return alphaBetaMin(node, alpha, beta, depth);
+            return alphaBetaMin(node, alpha, beta, depth, maxDepth, isWhite);
         }
     }
 
@@ -134,60 +136,76 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
      * @throws AIStoppedException thrown whenever the boolean stopped has been
      * set to true.
      */
-    int alphaBetaMin(DraughtsNode node, int alpha, int beta, int depth)
+    int alphaBetaMin(DraughtsNode node, int alpha, int beta, int depth, int maxDepth, boolean isWhite)
             throws AIStoppedException {
         if (stopped) {
             stopped = false;
             throw new AIStoppedException();
         }
+        
         DraughtsState state = node.getState();
+        
+        if(depth == maxDepth){
+            return evaluate(state, isWhite);
+        }
+        
         // ToDo: write an alphabeta search to compute bestMove and value
-        int bestVal = 100000000;
+        int bestVal = MAX_VALUE;
         List<Move> moves = state.getMoves();
         for (Move move : moves) {
             state.doMove(move);
-            int score = 0;
-            if (depth > 0) {
-                score = alphaBeta(node, 0, 0, depth - 1);
-            } else {
-                score = evaluate(state);
+            if(state.getMoves().size() == 0){
+                continue;
             }
-            if (score < bestVal) {
-                bestVal = score;
-                if (depth == 5) {
-                    node.setBestMove(move);
-                }
+            
+            int score = alphaBeta(node, alpha, beta, depth + 1, maxDepth, isWhite);
+            if(score <= bestVal && depth == 0){
+                node.setBestMove(move);
             }
+            bestVal = Math.min(bestVal, score);
+            
             state.undoMove(move);
+            
+            beta = Math.min( beta, bestVal);
+            if(beta <= alpha){
+                break;
+            }
         }
         return bestVal;
     }
 
-    int alphaBetaMax(DraughtsNode node, int alpha, int beta, int depth)
+    int alphaBetaMax(DraughtsNode node, int alpha, int beta, int depth, int maxDepth, boolean isWhite)
             throws AIStoppedException {
         if (stopped) {
             stopped = false;
             throw new AIStoppedException();
         }
         DraughtsState state = node.getState();
+        if(depth == maxDepth){
+            return evaluate(state, isWhite);
+        }
+        
         // ToDo: write an alphabeta search to compute bestMove and value
-        int bestVal = -100000000;
+        int bestVal = MIN_VALUE;
         List<Move> moves = state.getMoves();
         for (Move move : moves) {
             state.doMove(move);
-            int score = 0;
-            if (depth > 0) {
-                score = alphaBeta(node, 0, 0, depth - 1);
-            } else {
-                score = evaluate(state);
+            if(state.getMoves().size() == 0){
+                continue;
             }
-            if (score > bestVal) {
-                bestVal = score;
-                if (depth == 5) {
-                    node.setBestMove(move);
-                }
+            
+            int score = alphaBeta(node, alpha, beta, depth + 1, maxDepth, isWhite);
+            if(score > bestVal && depth == 0){
+                node.setBestMove(move);
             }
+            bestVal = Math.max(bestVal, score);
+            
             state.undoMove(move);
+            
+            alpha = Math.max( alpha, bestVal);
+            if(beta <= alpha){
+                break;
+            }
         }
         return bestVal;
     }
@@ -196,7 +214,7 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
      * A method that evaluates the given state.
      */
     // ToDo: write an appropriate evaluation function
-    int evaluate(DraughtsState state) {
+    int evaluate(DraughtsState state, boolean isWhite) {
         DraughtsNode node = new DraughtsNode(state);
         //Devide certain aspects in weights with a total of 100
         int piecedifferenceWeight = 50;
@@ -204,16 +222,16 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
         int tempiWeight = 5;
         int piecePostionWeight = 10;
         
-        int pieceDiffscore = PieceDifference(state) * piecedifferenceWeight;
-        int positionscore = PositionScore(state) * positionWeight;
-        int tempiscore = Tempi(state) * tempiWeight;
-        int piecePosition = PiecePostion(state) * piecePostionWeight;
+        int pieceDiffscore = PieceDifference(state, isWhite) * piecedifferenceWeight;
+        int positionscore = Position2Score(state) * positionWeight;
+        //int tempiscore = Tempi(state) * tempiWeight;
+        //int piecePosition = PiecePostion(state) * piecePostionWeight;
 
-        return pieceDiffscore + positionscore + tempiscore;
+        return pieceDiffscore + positionscore; // + tempiscore;
     }
 
     //Get the difference in piecies between black and white
-    int PieceDifference(DraughtsState state){
+    int PieceDifference(DraughtsState state, boolean isWhite){
         int[] pieces = state.getPieces();
         int blackpieces = 0;
         int whitepieces = 0;
@@ -237,7 +255,9 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
                     break;
             }
         }
-        return whitepieces - blackpieces;
+        int multiplier = 1;
+        if(!isWhite) multiplier = -1;
+        return multiplier * (whitepieces - blackpieces);
     }
 
     //Get a score of the curren positioning
@@ -262,7 +282,6 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
                 }
             }
         }
-        //System.out.println(whitepieceScore);
         return whitepieceScore;
     }
 
@@ -288,7 +307,6 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
                 }
             }
         }
-        //System.out.println(whitepieceScore);
         return -wValue;
     }
     
@@ -298,7 +316,7 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
         int blackTempi = 0;
         for(int i=0; i < pieces.length; i++){
             if(pieces[i] == 1){
-                whiteTempi += 10 - i/5;
+                whiteTempi += (51-i)/5;
             }
             if(pieces[i] == 2)
             {
