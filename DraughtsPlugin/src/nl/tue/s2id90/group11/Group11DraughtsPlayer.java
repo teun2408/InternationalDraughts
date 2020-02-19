@@ -34,7 +34,7 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
     public Move getMove(DraughtsState s) {
         Move bestMove = null;
         bestValue = 0;
-        DraughtsNode node = new DraughtsNode(s);    // the root of the search tree
+        DraughtsNode node = new DraughtsNode(s.clone());    // the root of the search tree
         try {
             // compute bestMove and bestValue in a call to alphabeta
             bestValue = alphaBeta(node, MIN_VALUE, MAX_VALUE, maxSearchDepth);
@@ -53,6 +53,7 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
 
         if (bestMove == null) {
             System.err.println("no valid move found!");
+            //bestValue = alphaBeta(node, MIN_VALUE, MAX_VALUE, maxSearchDepth);
             return getRandomValidMove(s);
         } else {
             return bestMove;
@@ -198,16 +199,21 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
     int evaluate(DraughtsState state) {
         DraughtsNode node = new DraughtsNode(state);
         //Devide certain aspects in weights with a total of 100
-        int piecedifferenceWeight = 0;
-        int positionWeight = 100;
-
-        int pieceDiffscore = PieceDifference(state, node.getState().isWhiteToMove()) * piecedifferenceWeight;
+        int piecedifferenceWeight = 50;
+        int positionWeight = 25;
+        int tempiWeight = 5;
+        int piecePostionWeight = 10;
+        
+        int pieceDiffscore = PieceDifference(state) * piecedifferenceWeight;
         int positionscore = PositionScore(state) * positionWeight;
-        return pieceDiffscore + positionscore;
+        int tempiscore = Tempi(state) * tempiWeight;
+        int piecePosition = PiecePostion(state) * piecePostionWeight;
+
+        return pieceDiffscore + positionscore + tempiscore;
     }
 
     //Get the difference in piecies between black and white
-    int PieceDifference(DraughtsState state, boolean isWhiteToMove) {
+    int PieceDifference(DraughtsState state){
         int[] pieces = state.getPieces();
         int blackpieces = 0;
         int whitepieces = 0;
@@ -215,29 +221,51 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
         //Compare the result of white - black pieces or the opposide 
         for (int i = 0; i < pieces.length; i++) {
             switch (pieces[i]) {
-            case 1:
-                whitepieces++;
-                break;
-            case 3:
-                whitepieces += 3;
-                break;
-            case 2:
-                blackpieces++;
-                break;
-            case 4:
-                blackpieces += 3;
-                break;
-            default:
-                break;
+                case 1:
+                    whitepieces++;
+                    break;
+                case 3:
+                    whitepieces += 4;
+                    break;
+                case 2:
+                    blackpieces++;
+                    break;
+                case 4:
+                    blackpieces += 4;
+                    break;
+                default:
+                    break;
             }
         }
-        int diff = whitepieces - blackpieces;
-
-        return diff;
-
+        return whitepieces - blackpieces;
     }
 
     //Get a score of the curren positioning
+    int Position2Score(DraughtsState state){
+        int[] pieces = state.getPieces();
+        int whitepieceScore = 0;
+        for(int i=0; i<pieces.length; i++){
+            if(i > 5 && i < 46)
+            {
+                if(i%10 != 6 && i%10 != 5){
+                    if(pieces[i] == 1){
+                        if((pieces[i-5] == 1 && pieces[i+4] == 1) || (pieces[i-6] == 1 && pieces[i+5] == 1)){
+                            whitepieceScore++;
+                        }
+                    }
+            
+                    if(pieces[i] == 2){
+                        if((pieces[i-5] == 2 && pieces[i+4] == 2) || (pieces[i-6] == 2 && pieces[i+5] == 2)){
+                            whitepieceScore--;
+                        }
+                      }
+                }
+            }
+        }
+        //System.out.println(whitepieceScore);
+        return whitepieceScore;
+    }
+
     int PositionScore(DraughtsState state) {
         int[] pieces = state.getPieces();
         int wValue = 0;
@@ -260,6 +288,85 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
                 }
             }
         }
-            return -wValue;
+        //System.out.println(whitepieceScore);
+        return -wValue;
+    }
+    
+    int Tempi(DraughtsState state){
+        int[] pieces = state.getPieces();
+        int whiteTempi = 0;
+        int blackTempi = 0;
+        for(int i=0; i < pieces.length; i++){
+            if(pieces[i] == 1){
+                whiteTempi += 10 - i/5;
+            }
+            if(pieces[i] == 2)
+            {
+                blackTempi += i/5;
+            }
+        }
+        return whiteTempi - blackTempi;
+    }
+    
+    //Try to keep the peices devided wel acros the board
+    int PiecePostion(DraughtsState state){
+        
+        int[] whitepieces = WhitePieces(state);
+        int[] blackpieces = BlackPieces(state);
+
+        int[] diffpercolumn = new int[10];
+        for(int i=0; i<whitepieces.length; i++){
+            diffpercolumn[whitepieces[i]%10] += 1;
+        }
+        
+        for(int i=0; i<blackpieces.length; i++){
+            diffpercolumn[blackpieces[i]%10] -= 1;
+        }
+        
+        int result = 0;
+        for(int i=0; i<diffpercolumn.length; i++){
+            //Add the square of the difference. So it For example if black got 3 more pieces in column 1 
+            //it counts as a bigger advantage as white having 3x1 more piece in the other columns
+            result += diffpercolumn[i] * diffpercolumn[i];
+        }
+        
+        return result *-1;
+    }
+    
+    int[] WhitePieces(DraughtsState state){
+        int[] whitepieces = new int[20];
+        int[] pieces = state.getPieces();
+        int count = 0;
+        for(int i=1; i<pieces.length; i++){
+            int piece = pieces[i];
+            if(piece == 1 || piece == 3){
+                whitepieces[count] = i;
+                count++;
+            }
+        }
+        return whitepieces;
+    }
+    
+    int[] BlackPieces(DraughtsState state){
+        int[] blackpieces = new int[20];
+        int[] pieces = state.getPieces();
+        int count = 0;
+        for(int i=1; i<pieces.length; i++){
+            int piece = pieces[i];
+            if(piece == 2 || piece == 4){
+                blackpieces[count] = i;
+                count++;
+            }
+        }
+        return blackpieces;
+    }
+    
+    //Count the amount of pieces that are either completly blocked or would be captured directly
+    int blockedPiecesScore(DraughtsState state){
+        List<Move> posmoves = state.getMoves();
+        for(int i=0; i<posmoves.size(); i++){
+            
+        }
+        return 0;
     }
 }
