@@ -2,8 +2,10 @@ package nl.tue.s2id90.group11;
 
 import static java.lang.Integer.MAX_VALUE;
 import static java.lang.Integer.MIN_VALUE;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.HashMap;
 import nl.tue.s2id90.draughts.DraughtsState;
 import nl.tue.s2id90.draughts.player.DraughtsPlayer;
 import org10x10.dam.game.Move;
@@ -38,17 +40,16 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
             for(int i = 1; i < maxSearchDepth +20; i++){
                 
             DraughtsNode node = new DraughtsNode(s.clone());    // the root of the search tree
-
-            DraughtsState endstate = null;
+            HashMap<Integer, Integer> knownResults = new HashMap<Integer, Integer>();            
             
             // compute bestMove and bestValue in a call to alphabeta
-            int newbest = alphaBeta(node, MIN_VALUE, MAX_VALUE, 0, i, s.isWhiteToMove(), endstate);
+            int newbest = alphaBeta(node, MIN_VALUE, MAX_VALUE, 0, i, knownResults);
 
             // store the bestMove found uptill now
             // NB this is not done in case of an AIStoppedException in alphaBeat()
             Move result = node.getBestMove();
 
-            if(result != null){
+            if(result != null && newbest != MIN_VALUE && (bestValue == MIN_VALUE)){
                 bestMove = result;
                 bestValue = newbest;
             }
@@ -114,19 +115,19 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
      * @throws AIStoppedException
      *
      */
-    int alphaBeta(DraughtsNode node, int alpha, int beta, int depth, int maxDepth, boolean isWhite, DraughtsState endstate)
+    int alphaBeta(DraughtsNode node, int alpha, int beta, int depth, int maxDepth, HashMap<Integer, Integer> knownResults)
             throws AIStoppedException {
         if(depth >= maxDepth && IsQuiet(node.getState())){
-            return evaluate(node.getState(), isWhite);
+            return evaluate(node.getState());
         }      
-        if(node.getState().isEndState()){
+        if(node.getState().getMoves().isEmpty()){
             return MIN_VALUE;
         }
                
-        if (depth%2 == 0) {
-            return alphaBetaMax(node, alpha, beta, depth, maxDepth, isWhite, endstate);
+        if (node.getState().isWhiteToMove()) {
+            return alphaBetaMax(node, alpha, beta, depth, maxDepth, knownResults);
         } else {
-            return alphaBetaMin(node, alpha, beta, depth, maxDepth, isWhite, endstate);
+            return alphaBetaMin(node, alpha, beta, depth, maxDepth, knownResults);
         }
     }
 
@@ -152,7 +153,7 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
      * @throws AIStoppedException thrown whenever the boolean stopped has been
      * set to true.
      */
-    int alphaBetaMin(DraughtsNode node, int alpha, int beta, int depth, int maxDepth, boolean isWhite, DraughtsState endstate)
+    int alphaBetaMin(DraughtsNode node, int alpha, int beta, int depth, int maxDepth, HashMap<Integer, Integer> knownResults)
             throws AIStoppedException {
         if (stopped) {
             stopped = false;
@@ -161,15 +162,25 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
         
         DraughtsState state = node.getState();
         
+        
         // ToDo: write an alphabeta search to compute bestMove and value
         int bestVal = MAX_VALUE;
         List<Move> moves = state.getMoves();
         for (Move move : moves) {
             state.doMove(move);
-            int score = alphaBeta(node, alpha, beta, depth + 1, maxDepth, isWhite, endstate);
-            if(score <= bestVal && depth == 0){
+            
+            int score = 0;
+            int hashcode = HashCode(state);
+            
+            if(knownResults.containsKey(hashcode)){
+                score = knownResults.get(hashcode);
+            } else{
+                score = alphaBeta(node, alpha, beta, depth + 1, maxDepth, knownResults); 
+                knownResults.put(hashcode, score);
+            }
+            
+            if(score < bestVal && depth == 0){
                 node.setBestMove(move);
-                endstate = state.clone();
             }
             bestVal = Math.min(bestVal, score);
             
@@ -183,7 +194,7 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
         return bestVal;
     }
 
-    int alphaBetaMax(DraughtsNode node, int alpha, int beta, int depth, int maxDepth, boolean isWhite, DraughtsState endstate)
+    int alphaBetaMax(DraughtsNode node, int alpha, int beta, int depth, int maxDepth, HashMap<Integer, Integer> knownResults)
             throws AIStoppedException {
         if (stopped) {
             stopped = false;
@@ -197,10 +208,18 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
         for (Move move : moves) {
             state.doMove(move);
             
-            int score = alphaBeta(node, alpha, beta, depth + 1, maxDepth, isWhite, endstate);
+            int score = 0;
+            int hashcode = HashCode(state);
+            
+            if(knownResults.containsKey(hashcode)){
+                score = knownResults.get(hashcode);
+            } else{
+                score = alphaBeta(node, alpha, beta, depth + 1, maxDepth, knownResults); 
+                knownResults.put(hashcode, score);
+            }
+            
             if(score > bestVal && depth == 0){
                 node.setBestMove(move);
-                endstate = state.clone();
             }
             bestVal = Math.max(bestVal, score);
             
@@ -218,28 +237,28 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
      * A method that evaluates the given state.
      */
     // ToDo: write an appropriate evaluation function
-    int evaluate(DraughtsState state, boolean isWhite) {
+    int evaluate(DraughtsState state) {
         DraughtsNode node = new DraughtsNode(state);
         //Devide certain aspects in weights with a total of 100
         int piecedifferenceWeight = 90;
         int positionWeight = 9;
         int tempiWeight = 1;
-        int piecePostionWeight = 10;
         
-        int pieceDiffscore = PieceDifference(state, isWhite) * piecedifferenceWeight;
+        int pieceDiffscore = PieceDifference(state) * piecedifferenceWeight;
         int positionscore = Position2Score(state) * positionWeight;
         int tempiscore = Tempi(state) * tempiWeight;
-        //int piecePosition = PiecePostion(state) * piecePostionWeight;
-
-        int multiplier = 1;
-        if(!isWhite){
-            multiplier = -1;
+        
+        if(WhiteWon(state)){
+            return MAX_VALUE / 2;
+        } if(BlackWon(state)){
+            return MIN_VALUE / 2;
         }
-        return multiplier * (pieceDiffscore + positionscore + tempiscore);
+
+        return (pieceDiffscore + positionscore + tempiscore);
     }
 
     //Get the difference in piecies between black and white
-    int PieceDifference(DraughtsState state, boolean isWhite){
+    int PieceDifference(DraughtsState state){
         int[] pieces = state.getPieces();
         int blackpieces = 0;
         int whitepieces = 0;
@@ -251,13 +270,13 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
                     whitepieces++;
                     break;
                 case 3:
-                    whitepieces += 4;
+                    whitepieces += 3;
                     break;
                 case 2:
                     blackpieces++;
                     break;
                 case 4:
-                    blackpieces += 4;
+                    blackpieces += 3;
                     break;
                 default:
                     break;
@@ -275,16 +294,29 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
             {
                 if(i%10 != 6 && i%10 != 5){
                     if(pieces[i] == 1){
-                        if((pieces[i-5] == 1 && pieces[i+4] == 1) || (pieces[i-6] == 1 && pieces[i+5] == 1)){
-                            whitepieceScore++;
+                        //Check if i is an odd or even row
+                        if(((i-1)/5)%2 == 0){
+                            if((pieces[i-6] == 1 && pieces[i+5] == 1) || (pieces[i-5] == 1 && pieces[i+4] == 1)){
+                                whitepieceScore++;
+                            }
+                        } else{
+                            if((pieces[i-5] == 1 && pieces[i+6] == 1) || (pieces[i-4] == 1 && pieces[i+5] == 1)){
+                                whitepieceScore++;
+                            }
                         }
                     }
             
                     if(pieces[i] == 2){
-                        if((pieces[i-5] == 2 && pieces[i+4] == 2) || (pieces[i-6] == 2 && pieces[i+5] == 2)){
-                            whitepieceScore--;
+                        if(((i-1)/5)%2 == 0){
+                            if((pieces[i-6] == 2 && pieces[i+5] == 2) || (pieces[i-5] == 2 && pieces[i+4] == 2)){
+                                whitepieceScore--;
+                            }
+                        } else{
+                            if((pieces[i-5] == 2 && pieces[i+6] == 2) || (pieces[i-4] == 2 && pieces[i+5] == 2)){
+                                whitepieceScore--;
+                            }
                         }
-                      }
+                    }
                 }
             }
         }
@@ -332,68 +364,15 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
         return whiteTempi - blackTempi;
     }
     
-    //Try to keep the peices devided wel acros the board
-    int PiecePostion(DraughtsState state){
-        
-        int[] whitepieces = WhitePieces(state);
-        int[] blackpieces = BlackPieces(state);
 
-        int[] diffpercolumn = new int[10];
-        for(int i=0; i<whitepieces.length; i++){
-            diffpercolumn[whitepieces[i]%10] += 1;
+    int HashCode(DraughtsState state){
+        int res = Arrays.hashCode(state.getPieces());
+        if(state.isWhiteToMove()){
+            res += 1;
         }
-        
-        for(int i=0; i<blackpieces.length; i++){
-            diffpercolumn[blackpieces[i]%10] -= 1;
-        }
-        
-        int result = 0;
-        for(int i=0; i<diffpercolumn.length; i++){
-            //Add the square of the difference. So it For example if black got 3 more pieces in column 1 
-            //it counts as a bigger advantage as white having 3x1 more piece in the other columns
-            result += diffpercolumn[i] * diffpercolumn[i];
-        }
-        
-        return result *-1;
+        return res;
     }
-    
-    int[] WhitePieces(DraughtsState state){
-        int[] whitepieces = new int[20];
-        int[] pieces = state.getPieces();
-        int count = 0;
-        for(int i=1; i<pieces.length; i++){
-            int piece = pieces[i];
-            if(piece == 1 || piece == 3){
-                whitepieces[count] = i;
-                count++;
-            }
-        }
-        return whitepieces;
-    }
-    
-    int[] BlackPieces(DraughtsState state){
-        int[] blackpieces = new int[20];
-        int[] pieces = state.getPieces();
-        int count = 0;
-        for(int i=1; i<pieces.length; i++){
-            int piece = pieces[i];
-            if(piece == 2 || piece == 4){
-                blackpieces[count] = i;
-                count++;
-            }
-        }
-        return blackpieces;
-    }
-    
-    //Count the amount of pieces that are either completly blocked or would be captured directly
-    int blockedPiecesScore(DraughtsState state){
-        List<Move> posmoves = state.getMoves();
-        for(int i=0; i<posmoves.size(); i++){
-            
-        }
-        return 0;
-    }
-    
+  
     boolean IsQuiet(DraughtsState state){
         if(!state.isEndState()){
             return !state.getMoves().get(0).isCapture();    
@@ -401,5 +380,13 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
         else{
             return true;
         }
+    }
+    
+    boolean WhiteWon(DraughtsState state){
+        return !state.isWhiteToMove() && state.getMoves().isEmpty();
+    }
+    
+    boolean BlackWon(DraughtsState state){
+        return state.isWhiteToMove() && state.getMoves().isEmpty();
     }
 }
