@@ -22,9 +22,10 @@ import org10x10.dam.game.Move;
 public class Test extends DraughtsPlayer {
 
     private int bestValue = 0;
-    int maxSearchDepth;
-    HashMap<Integer, Integer> knownResults = new HashMap<Integer, Integer>();   
-    HashMap<Integer, Integer> killerHeuristics = new HashMap<Integer, Integer>();
+    HashMap<Integer, Integer> TransPositionTable = new HashMap<Integer, Integer>();
+    HashMap<Integer, int[]> Test = new HashMap<Integer, int[]>();
+
+    int[][][] HistoryHeuristic = new int[2][51][51];
     int leafCount = 0;
 
     /**
@@ -34,21 +35,25 @@ public class Test extends DraughtsPlayer {
 
     public Test(int maxSearchDepth) {
         super("best.png"); // ToDo: replace with your own icon
-        this.maxSearchDepth = maxSearchDepth;
     }
 
     @Override
     public Move getMove(DraughtsState s) {
         Move bestMove = null;
         bestValue = 0;
-        leafCount = 0;
-        System.out.println(s.isWhiteToMove() ? "White" : "Black");
+        HistoryHeuristic = new int[2][51][51];
+        
+        //System.out.println(s.isWhiteToMove() ? "White" : "Black");
+        //long startTime = System.currentTimeMillis();
         try {
             boolean searching = true;
             int depth = 1;
-            while(searching){
-                DraughtsNode node = new DraughtsNode(s.clone());    // the root of the search tree
-                knownResults = new HashMap<Integer, Integer>();
+            while(searching && depth < 30){
+                DraughtsNode node = new DraughtsNode(s.clone());
+
+                leafCount = 0;
+                TransPositionTable = new HashMap<Integer, Integer>();
+                Test = new HashMap<Integer, int[]>();
                 
                 // compute bestMove and bestValue in a call to alphabeta
                 int newbest = alphaBeta(node, MIN_VALUE, MAX_VALUE, 0, depth);
@@ -57,26 +62,13 @@ public class Test extends DraughtsPlayer {
                 // NB this is not done in case of an AIStoppedException in alphaBeat()
                 Move result = node.getBestMove();
 
-                //If the result is null and there is no move found yet, reset to 1 to be safe.
-                if(result == null && bestMove == null && depth != 1){
-                    depth = 1;
-                }
-
-                if(result != null //&& 
-                        //newbest != MIN_VALUE && 
-                        //!(bestValue <= MIN_VALUE / 4 && !node.getState().isWhiteToMove())  &&
-                        //!(bestValue >= MAX_VALUE / 4 && node.getState().isWhiteToMove())
-                        ){
+                if(result != null){
                     bestMove = result;
                     bestValue = newbest;
                 }
                 
-                if((bestValue > 10000 && node.getState().isWhiteToMove()) || (bestValue < -10000 && !node.getState().isWhiteToMove())){
-                    searching = false;
-                }
-
                 System.out.println(leafCount);
-                // print the results for debugging reasons
+                //System.out.println(System.currentTimeMillis() - startTime);
                 System.err.format(
                         "%s: depth= %2d, best move = %5s, value=%d\n",
                         this.getClass().getSimpleName(), depth, bestMove, bestValue
@@ -140,19 +132,25 @@ public class Test extends DraughtsPlayer {
      */
     int alphaBeta(DraughtsNode node, int alpha, int beta, int depth, int maxDepth)
             throws AIStoppedException {
+        
+        DraughtsState state = node.getState();
+        
+        int hashcode = HashCode(state, depth);
+        if(TransPositionTable.containsKey(hashcode)){
+            return TransPositionTable.get(hashcode);
+        }
         leafCount++;
-        if(depth >= maxDepth && IsQuiet(node.getState())){
-            return evaluate(node.getState());
-        }      
-        if(node.getState().getMoves().isEmpty()){
-            return node.getState().isWhiteToMove() ? MIN_VALUE : MAX_VALUE;
-        }
-               
-        if (node.getState().isWhiteToMove()) {
-            return alphaBetaMax(node, alpha, beta, depth, maxDepth);
+        int result = 0;
+
+        if((depth >= maxDepth && IsQuiet(state)) || state.isEndState()){
+            result = evaluate(state);
+        } else if (state.isWhiteToMove()) {
+            result = alphaBetaMax(node, alpha, beta, depth, maxDepth);
         } else {
-            return alphaBetaMin(node, alpha, beta, depth, maxDepth);
+            result = alphaBetaMin(node, alpha, beta, depth, maxDepth);
         }
+        TransPositionTable.put(hashcode, result);
+        return result;
     }
 
     /**
@@ -179,113 +177,115 @@ public class Test extends DraughtsPlayer {
      */
     int alphaBetaMin(DraughtsNode node, int alpha, int beta, int depth, int maxDepth)
             throws AIStoppedException {
-        if (stopped) {
-            stopped = false;
-            throw new AIStoppedException();
-        }
-        
+        if (stopped) { stopped = false; throw new AIStoppedException(); }
         DraughtsState state = node.getState();
-        
-        // ToDo: write an alphabeta search to compute bestMove and value
-        int bestVal = MAX_VALUE;
-        List<Move> moves = state.getMoves();
+        List<Move> moves = orderMoves(state);
+        Move bestMove = null;
         for (Move move : moves) {
             state.doMove(move);
-            
-            int result = 0;
-            int hashcode = HashCode(state);
-            
-            if(knownResults.containsKey(hashcode)){
-                result = knownResults.get(hashcode);
-            } else{
-                result = alphaBeta(node, alpha, beta, depth + 1, maxDepth); 
-                knownResults.put(hashcode, result);
-            }
-            
-            if(result < bestVal && depth == 0){
-                node.setBestMove(move);
-            }
-            if(result < bestVal){
-                bestVal = result;
-            }
-            
+            int result = alphaBeta(node, alpha, beta, depth + 1, maxDepth);
             state.undoMove(move);
             
-            beta = Math.min(beta, bestVal);
+            if(result < beta){
+                beta = result;
+                bestMove = move;
+            }
             if(beta <= alpha){
                 break;
             }
         }
-        return bestVal;
+        if(depth == 0){
+            node.setBestMove(bestMove);
+        }
+        SetHistoryHeuristic(bestMove, depth, maxDepth);
+        return beta;
     }
 
     int alphaBetaMax(DraughtsNode node, int alpha, int beta, int depth, int maxDepth)
             throws AIStoppedException {
-        if (stopped) {
-            stopped = false;
-            throw new AIStoppedException();
-        }
+        if (stopped) { stopped = false; throw new AIStoppedException(); }
         DraughtsState state = node.getState();
-        
-        // ToDo: write an alphabeta search to compute bestMove and value
-        int bestVal = MIN_VALUE;
-        List<Move> moves = state.getMoves();
+        List<Move> moves = orderMoves(state);
+        Move bestMove = null;
         for (Move move : moves) {
             state.doMove(move);
-            
-            int result = 0;
-            int hashcode = HashCode(state);
-            
-            if(knownResults.containsKey(hashcode)){
-                result = knownResults.get(hashcode);
-            } else{
-                result = alphaBeta(node, alpha, beta, depth + 1, maxDepth); 
-                knownResults.put(hashcode, result);
-            }
-            
-            if(result > bestVal && depth == 0){
-                node.setBestMove(move);
-            }
-            if(result > bestVal){
-                bestVal = result;
-            }
+            int result = alphaBeta(node, alpha, beta, depth + 1, maxDepth);
             state.undoMove(move);
             
-            alpha = Math.max(alpha, bestVal);
+            if(result > alpha){
+                alpha = result;
+                bestMove = move;
+            }
             if(beta <= alpha){
                break;
             }
         }
-        return bestVal;
+        if(depth == 0){
+            node.setBestMove(bestMove);
+        }
+        SetHistoryHeuristic(bestMove, depth, maxDepth);
+        return alpha;
     }
 
     /**
      * A method that evaluates the given state.
      */
-    // ToDo: write an appropriate evaluation function
-    int evaluate(DraughtsState state) {
-        int hashCode = HashCode(state);
-        if(killerHeuristics.containsKey(hashCode)){
-            return killerHeuristics.get(hashCode);
+    int evaluate(DraughtsState state) {        
+   
+        int won = 0;
+        if(state.isEndState()){
+            if(state.isWhiteToMove()){
+                if(state.getMoves().isEmpty()){
+                    won = MIN_VALUE / 10;
+                }
+                else{
+                    won = MAX_VALUE / 10;
+                }
+            } else{
+                if(state.getMoves().isEmpty()){
+                    won = MAX_VALUE / 10;
+                } else{
+                    won = MIN_VALUE / 10;
+                }
+            }
         }
         
         //Devide certain aspects in weights with a total of 100
         int piecedifferenceWeight = 90;
         int positionWeight = 5;
         int tempiWeight = 5;
-        int piecesSpreadWeight = 5;
+        int piecesSpreadWeight = 15;
         
         int pieceDiffscore = (int)(PieceDifference(state) * piecedifferenceWeight);
         int positionscore = PositionScore(state) * positionWeight;
         int tempiscore = Tempi(state) * tempiWeight;
         int centerPieceScore = KeepCenterPieces(state);
         int piceSpradScore = PieceSpread(state) * piecesSpreadWeight;
+        int captureKingScore = CaptureKing(state);
         
-        int result = pieceDiffscore + positionscore + tempiscore + centerPieceScore + piceSpradScore;     
-        killerHeuristics.put(hashCode, result);
+        int result = won + pieceDiffscore + positionscore + tempiscore + centerPieceScore + piceSpradScore + captureKingScore;   
         return result;
     }
 
+    int CaptureKing(DraughtsState state){
+        int[] piecesOnTriktraklijn = new int[] {
+            state.getPiece(1),
+            state.getPiece(6),
+            state.getPiece(45),
+            state.getPiece(50)
+        };
+        int score = 0;
+        for(int i=0; i<piecesOnTriktraklijn.length; i++){
+            int piece = piecesOnTriktraklijn[i];
+            if(piece == 3){
+                score += 20;
+            } else if(piece == 4){
+                score -= 20;
+            }
+        }
+        return score;
+    }
+    
     //Get the difference in piecies between black and white
     double PieceDifference(DraughtsState state){
         int[] pieces = state.getPieces();
@@ -312,6 +312,7 @@ public class Test extends DraughtsPlayer {
             }
         }
         double multiplier = (Math.max(blackpieces, whitepieces) + 0.0) / Math.max(Math.min(blackpieces, whitepieces), 0.01);
+        multiplier *= multiplier;
         return ((whitepieces - blackpieces) * multiplier);
     }
     
@@ -381,11 +382,10 @@ public class Test extends DraughtsPlayer {
         return whiteTempi - blackTempi;
     }
     
-    int HashCode(DraughtsState state){
+    int HashCode(DraughtsState state, int depth){
         int res = Arrays.hashCode(state.getPieces());
-        if(state.isWhiteToMove()){
-            res += 1;
-        }
+        //res += depth;
+        res += state.isWhiteToMove() ? 1 : 2;
         return res;
     }
   
@@ -396,14 +396,6 @@ public class Test extends DraughtsPlayer {
         else{
             return true;
         }
-    }
-    
-    boolean WhiteWon(DraughtsState state){
-        return !state.isWhiteToMove() && state.getMoves().isEmpty();
-    }
-    
-    boolean BlackWon(DraughtsState state){
-        return state.isWhiteToMove() && state.getMoves().isEmpty();
     }
     
     int PieceSpreadPerSide(DraughtsState state, boolean white){
@@ -450,31 +442,26 @@ public class Test extends DraughtsPlayer {
         return PieceSpreadPerSide(state, true) - PieceSpreadPerSide(state, false);
     }
     
-    List<Move> orderMoves(DraughtsState state, int depth, List<Move> previousItterationMoves){
+    List<Move> orderMoves(DraughtsState state){
         List<Move> moves = state.getMoves();
-//        Collections.sort(moves, new Comparator<Move>() {
-//            @Override
-//            public int compare(Move lhs, Move rhs) {
-//                // -1 - less than, 1 - greater than, 0 - equal, all inversed for descending
-//                state.doMove(lhs);
-//                int lhsScore = evaluate(state);
-//                state.undoMove(lhs);
-//                state.doMove(rhs);
-//                int rhsScore = evaluate(state);
-//                state.undoMove(rhs);    
-//                
-//                return lhsScore > rhsScore ? -1 : (lhsScore < rhsScore) ? 1 : 0;
-//            }
-//        });
         
-        if(previousItterationMoves.size() > depth){
-            Move bestMovePrevItt = previousItterationMoves.get(depth);
-            if(moves.contains(bestMovePrevItt)){
-                int i = moves.indexOf(bestMovePrevItt);
-                Collections.swap(moves, i, 0);
+        Collections.sort(moves, new Comparator<Move>() {
+            @Override
+            public int compare(Move lhs, Move rhs) {               
+                int lhsScore = HistoryHeuristicScore(lhs);
+                int rhsScore = HistoryHeuristicScore(rhs);
+                return lhsScore > rhsScore ? -1 : (lhsScore < rhsScore) ? 1 : 0;
             }
-        }
-
+        });
         return moves;
+    }
+    
+    int HistoryHeuristicScore(Move move){
+        return HistoryHeuristic[move.isWhiteMove() ? 0 : 1][move.getBeginField()][move.getEndField()];
+    }
+    void SetHistoryHeuristic(Move move, int depth, int maxDepth){
+        if(move != null){
+            HistoryHeuristic[move.isWhiteMove()? 0 : 1][move.getBeginField()][move.getEndField()] += Math.pow(2, depth);
+        }
     }
 }

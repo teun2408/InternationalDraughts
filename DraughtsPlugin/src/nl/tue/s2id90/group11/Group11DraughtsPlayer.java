@@ -46,9 +46,10 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
             boolean searching = true;
             int depth = 1;
             List<Move> PreviousItterationBestMoves = new ArrayList<Move>();
-            leafCount = 0;
             
             while(searching){
+                leafCount = 0;
+
                 DraughtsNode node = new DraughtsNode(s.clone());    // the root of the search tree
                 knownResults = new HashMap<Integer, ReturnObject>();
                 
@@ -376,10 +377,11 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
     }
     
     int HashCode(DraughtsState state){
-        int res = Arrays.hashCode(state.getPieces());
+        int[] pieces = state.getPieces();
         if(state.isWhiteToMove()){
-            res += 1;
+            pieces[0] = 10;
         }
+        int res = Arrays.hashCode(pieces);
         return res;
     }
   
