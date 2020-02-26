@@ -108,7 +108,7 @@ public class OfflineTournament<P extends Player<M,S>, PP extends PlayerProvider<
         // play tournament
         playDoubleRoundRobinTournament(
                 players
-                , 100                                          // max number of moves in a game
+                , 200                                          // max number of moves in a game
                 , 200                                         // max milliseconds/move
         );
     }
