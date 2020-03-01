@@ -36,7 +36,7 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
      */
     private boolean stopped;
 
-    public Group11DraughtsPlayer(int maxSearchDepth) {
+    public Group11DraughtsPlayer() {
         super("best.png"); // ToDo: replace with your own icon
     }
     
@@ -57,6 +57,7 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
         try {
             boolean searching = true;
             int depth = 1;
+            long start = System.currentTimeMillis();
             while(searching && depth < 30){
                 DraughtsNode node = new DraughtsNode(s.clone());
                 TransPositionTable = new HashMap<Integer, Integer>();
@@ -78,6 +79,7 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
                     searching = false;
                 }
 
+                System.out.println(System.currentTimeMillis() - start);
                 System.out.println(nodeCount);
                 System.err.format(
                         "%s: depth= %2d, best move = %5s, value=%d\n",
