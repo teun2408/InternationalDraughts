@@ -36,7 +36,7 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
      */
     private boolean stopped;
 
-    public Group11DraughtsPlayer(int maxSearchDepth) {
+    public Group11DraughtsPlayer() {
         super("best.png"); // ToDo: replace with your own icon
     }
     
@@ -57,6 +57,7 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
         try {
             boolean searching = true;
             int depth = 1;
+            long start = System.currentTimeMillis();
             while(searching && depth < 30){
                 DraughtsNode node = new DraughtsNode(s.clone());
                 TransPositionTable = new HashMap<Integer, Integer>();
@@ -78,6 +79,7 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
                     searching = false;
                 }
 
+                System.out.println(System.currentTimeMillis() - start);
                 System.out.println(nodeCount);
                 System.err.format(
                         "%s: depth= %2d, best move = %5s, value=%d\n",
@@ -428,6 +430,25 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
     
     int PieceSpread(DraughtsState state){
         return PieceSpreadPerSide(state, true) - PieceSpreadPerSide(state, false);
+    }
+    
+    int OutPostScore(DraughtsState state){
+        int[] pieces = state.getPieces();
+        int whiteScore = 0;
+        int blackScore = 0;
+        
+        for(int i = 0; i< pieces.length; i++){
+            //white outposts can only be in field 1 - 25
+            //Black outposts can only be in field 31-50
+            
+            if(i <= 25 && pieces[i] == 1){
+                //should have another whitepiece in max 1 move away
+            } else if(i >= 31){
+                //should have another blackpiece in max 1 move away
+            }
+        }
+        
+        return whiteScore - blackScore;
     }
     
     List<Move> orderMoves(DraughtsState state){
