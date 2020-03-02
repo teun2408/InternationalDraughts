@@ -247,6 +247,16 @@ public class Test extends DraughtsPlayer {
         return bestScore;
     }
 
+    /**
+     * Alpha beta max
+     * @param node the draughtsNode
+     * @param alpha The current alpha for cutt ofs
+     * @param beta The current beta for cut offs
+     * @param depth The current depth
+     * @param maxDepth The max depth
+     * @return return a returnobject with the moves and best score
+     * @throws AIStoppedException 
+     */
     returnObject alphaBetaMax(DraughtsNode node, int alpha, int beta, int depth, int maxDepth)
             throws AIStoppedException {
         if (stopped) {
@@ -385,6 +395,11 @@ public class Test extends DraughtsPlayer {
         return whitepieceScore;
     }
     
+    /**
+     * Return a tempi score
+     * @param state the draughtsState
+     * @return An integer of the tempi score
+     */
     int Tempi(DraughtsState state){
         int[] pieces = state.getPieces();
         int whiteTempi = 0;
@@ -401,14 +416,26 @@ public class Test extends DraughtsPlayer {
         return whiteTempi - blackTempi;
     }
     
+    /**
+     * Return a hashcode for the current state
+     * @param state
+     * @return 
+     */
     int HashCode(DraughtsState state){
         int res = Arrays.hashCode(state.getPieces());
+        
+        //Add 1 to the hashcode if white is to move this differentiates the black and white state if they somehow get in the same position
         if(state.isWhiteToMove()){
             res += 1;
         }
         return res;
     }
   
+    /**
+     * Return if the current state is quiet, meaning there is no possibility to capture
+     * @param state the draughtsState
+     * @return true or false if there is a capture possible
+     */
     boolean IsQuiet(DraughtsState state){
         if(!state.isEndState()){
             return !state.getMoves().get(0).isCapture();    
@@ -418,6 +445,12 @@ public class Test extends DraughtsPlayer {
         }
     }
     
+    /**
+     * Get the piece spread score
+     * @param state The current draughtsState
+     * @param white If white or black is to move
+     * @return A score for the given side
+     */
     int PieceSpreadPerSide(DraughtsState state, boolean white){
         int[] pieces = state.getPieces();
         
@@ -458,10 +491,20 @@ public class Test extends DraughtsPlayer {
         return leftDiff + middleDiff + rightDiff;
     }
       
+    /**
+     * Get total piece spread, white - black
+     * @param state The current draughtsState
+     * @return the piece spread score
+     */
     int PieceSpread(DraughtsState state){
         return PieceSpreadPerSide(state, true) - PieceSpreadPerSide(state, false);
     }
     
+    /**
+     * Get an outpost score
+     * @param state The current draughtsState
+     * @return an outpost score
+     */
     int OutPostScore(DraughtsState state){
         int[] pieces = state.getPieces();
         int whiteScore = 0;
