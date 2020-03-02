@@ -432,6 +432,25 @@ public class Group11DraughtsPlayer extends DraughtsPlayer {
         return PieceSpreadPerSide(state, true) - PieceSpreadPerSide(state, false);
     }
     
+    int OutPostScore(DraughtsState state){
+        int[] pieces = state.getPieces();
+        int whiteScore = 0;
+        int blackScore = 0;
+        
+        for(int i = 0; i< pieces.length; i++){
+            //white outposts can only be in field 1 - 25
+            //Black outposts can only be in field 31-50
+            
+            if(i <= 25 && pieces[i] == 1){
+                //should have another whitepiece in max 1 move away
+            } else if(i >= 31){
+                //should have another blackpiece in max 1 move away
+            }
+        }
+        
+        return whiteScore - blackScore;
+    }
+    
     List<Move> orderMoves(DraughtsState state){
         List<Move> moves = state.getMoves();
         

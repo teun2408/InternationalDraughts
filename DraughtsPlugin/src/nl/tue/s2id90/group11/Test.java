@@ -32,6 +32,7 @@ public class Test extends DraughtsPlayer {
     int positionWeight = 5;
     int tempiWeight = 5;
     int piecesSpreadWeight = 15;
+    int outPostWeight = 5;
     
     boolean asperationSearch = true;
     int aspirationWindow = 50;
@@ -45,12 +46,13 @@ public class Test extends DraughtsPlayer {
         super("best.png"); // ToDo: replace with your own icon
     }
     
-    public Test(int piecedifferenceWeight, int positionWeight, int tempiWeight, int piecesSpreadWeight) {
+    public Test(int piecedifferenceWeight, int positionWeight, int tempiWeight, int piecesSpreadWeight, int outpostWeight) {
         super("best.png"); // ToDo: replace with your own icon
         this.piecedifferenceWeight = piecedifferenceWeight;
         this.positionWeight = positionWeight;
         this.tempiWeight = tempiWeight;
         this.piecesSpreadWeight = piecesSpreadWeight;
+        this.outPostWeight = outpostWeight;
     }
 
     @Override
@@ -295,8 +297,9 @@ public class Test extends DraughtsPlayer {
         int tempiscore = tempiWeight == 0 ? 0 : Tempi(state) * tempiWeight;
         int centerPieceScore = KeepCenterPieces(state);
         int piceSpradScore = piecesSpreadWeight == 0 ? 0 : PieceSpread(state) * piecesSpreadWeight;
-        
-        return pieceDiffscore + positionscore + tempiscore + centerPieceScore + piceSpradScore;
+        int outPostScore = outPostWeight == 0 ? 0 : outPostWeight * OutPostScore(state);
+                
+        return pieceDiffscore + positionscore + tempiscore + centerPieceScore + piceSpradScore + outPostScore;
     }
 
     //Get the difference in piecies between black and white
@@ -459,6 +462,64 @@ public class Test extends DraughtsPlayer {
         return PieceSpreadPerSide(state, true) - PieceSpreadPerSide(state, false);
     }
     
+    int OutPostScore(DraughtsState state){
+        int[] pieces = state.getPieces();
+        int whiteScore = 0;
+        int blackScore = 0;
+        
+        for(int i = 0; i< pieces.length; i++){
+            //white outposts can only be in field 1 - 25
+            //Black outposts can only be in field 31-50
+                        
+            if(11 <= i && i <= 25 && pieces[i] == 1){
+                //should have another whitepiece in max 1 move away
+                // +9, +10, +11, +5, (+4, +6) depending on odd or even row
+                int[] piecesToCheck = new int[]{
+                    i+9,
+                    i+10,
+                    i+11,
+                    i+5,
+                    i+4
+                };
+                if(((i-1)/5)%2 == 0){
+                    piecesToCheck[4] = i+6;
+                }
+                if(!isPiece(pieces, true, piecesToCheck)){
+                    whiteScore--;
+                }
+            } else if(31 <= i && i <= 40 && pieces[i] == 2){
+                //should have another blackpiece in max 1 move away
+                // -9, -10, *11, -5, (-4, -6) depending on odd or even row
+                int[] piecesToCheck = new int[]{
+                    i-9,
+                    i-10,
+                    i-11,
+                    i-5,
+                    i-4
+                };
+                if(((i-1)/5)%2 == 0){
+                    piecesToCheck[4] = i-6;
+                }
+                if(!isPiece(pieces, false, piecesToCheck)){
+                    blackScore--;
+                }
+            }
+        }
+        
+        return whiteScore - blackScore;
+    }
+    
+    boolean isPiece(int[] pieces, boolean white, int[] fields){
+        int piece = white ? 1 : 0;
+        int king = white ? 3 : 4;
+        for(int i =0; i < fields.length; i++){
+            if(pieces[fields[i]] == piece || pieces[fields[i]] == king){
+                return true;
+            }
+        }
+        return false;
+    }
+    
     List<Move> orderMoves(DraughtsState state, Move previousMove){
         List<Move> moves = state.getMoves();
         
@@ -518,7 +579,7 @@ public class Test extends DraughtsPlayer {
     
     @Override 
     public String getName() {
-        return "test " + piecedifferenceWeight + " " + positionWeight + " " + tempiWeight + " " + piecesSpreadWeight;
+        return "test " + outPostWeight;
     }
    
     public boolean Validate(returnObject item, DraughtsState state){
