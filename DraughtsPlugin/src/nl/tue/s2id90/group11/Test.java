@@ -26,7 +26,6 @@ public class Test extends DraughtsPlayer {
     HashMap<Integer, returnObject> TransPositionTable = new HashMap<Integer, returnObject>();
     HashMap<Integer, returnObject> PreviousTransPositionTable = new HashMap<Integer, returnObject>();
     int[][][] HistoryHeuristic = new int[2][51][51];
-    int nodeCount = 0;
     List<Move> previousBestMoves = null;
     
     int piecedifferenceWeight = 90;
@@ -34,7 +33,7 @@ public class Test extends DraughtsPlayer {
     int tempiWeight = 5;
     int piecesSpreadWeight = 15;
     
-    boolean asperationSearch = false;
+    boolean asperationSearch = true;
     int aspirationWindow = 50;
     
     /**
@@ -44,12 +43,6 @@ public class Test extends DraughtsPlayer {
 
     public Test(int maxSearchDepth) {
         super("best.png"); // ToDo: replace with your own icon
-    }
-    
-    public Test(boolean asperationSearch, int aspirationWindow) {
-        super("best.png"); // ToDo: replace with your own icon
-        this.asperationSearch = asperationSearch;
-        this.aspirationWindow = aspirationWindow;
     }
     
     public Test(int piecedifferenceWeight, int positionWeight, int tempiWeight, int piecesSpreadWeight) {
@@ -72,16 +65,13 @@ public class Test extends DraughtsPlayer {
             
             int alpha = MIN_VALUE;
             int beta = MAX_VALUE;
-            
-            long start = System.currentTimeMillis();
-            
+                       
             while(searching && depth < 30){
                 DraughtsNode node = new DraughtsNode(s.clone());
                 TransPositionTable = new HashMap<Integer, returnObject>();
                 if(depth > 1){
                     PreviousTransPositionTable = TransPositionTables.get(depth - 2);                    
                 }
-                nodeCount = 0;
                 // compute bestMove and bestValue in a call to alphabeta
                 returnObject result = alphaBeta(node, alpha, beta, 0, depth);
 
@@ -110,10 +100,6 @@ public class Test extends DraughtsPlayer {
                     searching = false;
                 }
                 
-                System.out.println(nodeCount);                
-                System.out.println(System.currentTimeMillis() - start);
-                System.out.println(result.ToString());
-
                 System.err.format(
                         "%s: depth= %2d, best move = %5s, value=%d\n",
                         this.getClass().getSimpleName(), depth, bestMove, result.score
@@ -181,7 +167,6 @@ public class Test extends DraughtsPlayer {
         if(TransPositionTable.containsKey(hashcode)){
             return TransPositionTable.get(hashcode);
         }  
-        nodeCount++;
 
         DraughtsState state = node.getState();
         returnObject score = new returnObject(0, new ArrayList<Move>());
@@ -469,7 +454,7 @@ public class Test extends DraughtsPlayer {
         
         return leftDiff + middleDiff + rightDiff;
     }
-    
+      
     int PieceSpread(DraughtsState state){
         return PieceSpreadPerSide(state, true) - PieceSpreadPerSide(state, false);
     }
@@ -533,13 +518,15 @@ public class Test extends DraughtsPlayer {
     
     @Override 
     public String getName() {
-        return "test " + asperationSearch + " " + aspirationWindow;
+        return "test " + piecedifferenceWeight + " " + positionWeight + " " + tempiWeight + " " + piecesSpreadWeight;
     }
-    
+   
     public boolean Validate(returnObject item, DraughtsState state){
         DraughtsState clonedState = state.clone();
         for(Move move: item.moves){
-            clonedState.doMove(move);
+            if(move != null){
+                clonedState.doMove(move);
+            }
         }
         int actual = evaluate(clonedState);
         boolean result = actual == item.score;
@@ -562,9 +549,11 @@ public class Test extends DraughtsPlayer {
         public String ToString(){
             String res = "Score: " + score + " ";
             for(Move move : moves){
-                res += move.getBeginField();
-                res += move.isCapture() ? "x" : "-";
-                res += move.getEndField() + " ";
+                if(move != null){
+                    res += move.getBeginField();
+                    res += move.isCapture() ? "x" : "-";
+                    res += move.getEndField() + " ";
+                }
             }
             return res;
         }
