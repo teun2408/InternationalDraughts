@@ -43,11 +43,11 @@ public class Test extends DraughtsPlayer {
     private boolean stopped;
 
     public Test(int maxSearchDepth) {
-        super("best.png"); // ToDo: replace with your own icon
+        super("robin.png"); // ToDo: replace with your own icon
     }
     
     public Test(int piecedifferenceWeight, int positionWeight, int tempiWeight, int piecesSpreadWeight, int outpostWeight) {
-        super("best.png"); // ToDo: replace with your own icon
+        super("robin.png"); // ToDo: replace with your own icon
         this.piecedifferenceWeight = piecedifferenceWeight;
         this.positionWeight = positionWeight;
         this.tempiWeight = tempiWeight;
@@ -579,7 +579,7 @@ public class Test extends DraughtsPlayer {
     
     @Override 
     public String getName() {
-        return "test " + outPostWeight;
+        return "test " + piecesSpreadWeight + " " + outPostWeight;
     }
    
     public boolean Validate(returnObject item, DraughtsState state){
