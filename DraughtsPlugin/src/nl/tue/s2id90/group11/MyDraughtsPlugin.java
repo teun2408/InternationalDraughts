@@ -21,10 +21,7 @@ public class MyDraughtsPlugin extends DraughtsPlayerProvider implements Draughts
         // best player available. For testing it might be handy
         // to make more than one player available.
         super(
-                new Test(90, 05, 05, 15, 5),
-                new Test(90, 05, 05, 15, 3),
-                new Test(90, 05, 05, 15, 0)                
-
+                new Group11DraughtsPlayer()
         );
     }
 }
